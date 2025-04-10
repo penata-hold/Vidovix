@@ -222,6 +222,9 @@
             z-index: 1000;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
             animation: slideUp 0.5s ease-in-out forwards;
+            max-width: 90%;
+            text-align: center;
+            word-wrap: break-word;
         }
 
         @keyframes slideUp {
@@ -315,7 +318,7 @@
         const muteVideoBtn = document.getElementById('muteVideoBtn');
 
         // Google Apps Script URL (replace with your deployed script URL)
-        const signalingServerUrl = 'https://script.google.com/macros/s/AKfycbxikbiB1oPLKovOs0a9jpSbqFiWGyjyldCfOP320Gl4tx970-kmH2iJzNaYrGfLV754/exec'; // Replace with the URL from Step 1
+        const signalingServerUrl = 'https://script.google.com/macros/s/AKfycbwzP1Tk8mx3nDsoFf8-mp4Hcb2L18NCqkzDkI3O5b1GOtGRbrK9g6go16nI0JIaUx3d/exec'; // Replace with the URL from Step 1
 
         // Show toast messages
         function showToast(message) {
@@ -325,7 +328,29 @@
             document.body.appendChild(toast);
             setTimeout(function() {
                 toast.remove();
-            }, 3000);
+            }, 5000); // Increased duration to 5 seconds for better visibility
+        }
+
+        // Test server connectivity on page load
+        function testServerConnectivity() {
+            fetch(signalingServerUrl + '?roomId=test', { method: 'GET' })
+                .then(function(response) {
+                    if (!response.ok) {
+                        throw new Error('HTTP error, status = ' + response.status);
+                    }
+                    return response.json();
+                })
+                .then(function(data) {
+                    if (data.error) {
+                        showToast('Server test failed: ' + data.error);
+                    } else {
+                        showToast('Server connection successful.');
+                    }
+                })
+                .catch(function(error) {
+                    console.error('Server connectivity test failed:', error);
+                    showToast('Error connecting to server: ' + error.message + '. Please check the server URL and deployment.');
+                });
         }
 
         // Generate a unique Room ID
@@ -389,7 +414,7 @@
                 };
             } catch (error) {
                 console.error('Error creating peer connection:', error);
-                showToast('Failed to create peer connection.');
+                showToast('Failed to create peer connection: ' + error.message);
             }
         }
 
@@ -401,16 +426,21 @@
                 body: JSON.stringify(message)
             })
             .then(function(response) {
+                if (!response.ok) {
+                    throw new Error('HTTP error, status = ' + response.status);
+                }
                 return response.json();
             })
             .then(function(result) {
                 if (result.error) {
-                    showToast('Error sending message: ' + result.error);
+                    showToast('Error sending message to server: ' + result.error);
+                } else {
+                    console.log('Message sent successfully:', message.type);
                 }
             })
             .catch(function(error) {
                 console.error('Error sending signaling message:', error);
-                showToast('Error communicating with server. Please try again.');
+                showToast('Error communicating with server: ' + error.message + '. Please check your connection and server URL.');
             });
         }
 
@@ -418,6 +448,9 @@
         function pollSignalingMessages() {
             fetch(signalingServerUrl + '?roomId=' + roomId)
                 .then(function(response) {
+                    if (!response.ok) {
+                        throw new Error('HTTP error, status = ' + response.status);
+                    }
                     return response.json();
                 })
                 .then(function(messages) {
@@ -442,29 +475,30 @@
                                     })
                                     .catch(function(error) {
                                         console.error('Error handling offer:', error);
-                                        showToast('Error processing offer.');
+                                        showToast('Error processing offer: ' + error.message);
                                     });
                             } else if (message.type === 'answer') {
                                 peerConnection.setRemoteDescription(new RTCSessionDescription(message.answer))
                                     .catch(function(error) {
                                         console.error('Error handling answer:', error);
-                                        showToast('Error processing answer.');
+                                        showToast('Error processing answer: ' + error.message);
                                     });
                             } else if (message.type === 'candidate') {
                                 peerConnection.addIceCandidate(new RTCIceCandidate(message.candidate))
                                     .catch(function(error) {
                                         console.error('Error handling candidate:', error);
-                                        showToast('Error processing ICE candidate.');
+                                        showToast('Error processing ICE candidate: ' + error.message);
                                     });
                             }
                         } catch (error) {
                             console.error('Error processing message:', error);
+                            showToast('Error processing message: ' + error.message);
                         }
                     });
                 })
                 .catch(function(error) {
                     console.error('Error polling signaling messages:', error);
-                    showToast('Error polling server. Please check your connection.');
+                    showToast('Error polling server: ' + error.message + '. Please check your connection and server URL.');
                 });
         }
 
@@ -484,11 +518,11 @@
                     })
                     .catch(function(error) {
                         console.error('Error creating offer:', error);
-                        showToast('Error starting call.');
+                        showToast('Error starting call: ' + error.message);
                     });
             } catch (error) {
                 console.error('Error in startCall:', error);
-                showToast('Failed to start call.');
+                showToast('Failed to start call: ' + error.message);
             }
         }
 
@@ -515,7 +549,7 @@
                 showToast('Call ended.');
             } catch (error) {
                 console.error('Error in endCall:', error);
-                showToast('Error ending call.');
+                showToast('Error ending call: ' + error.message);
             }
         }
 
@@ -533,7 +567,7 @@
                 showToast('Room ID generated! Share it with your friend.');
             } catch (error) {
                 console.error('Error generating Room ID:', error);
-                showToast('Error generating Room ID.');
+                showToast('Error generating Room ID: ' + error.message);
             }
         });
 
@@ -556,7 +590,7 @@
                 showToast('Opening WhatsApp to share Room ID.');
             } catch (error) {
                 console.error('Error sharing Room ID:', error);
-                showToast('Error sharing Room ID.');
+                showToast('Error sharing Room ID: ' + error.message);
             }
         });
 
@@ -578,7 +612,7 @@
                 showToast('Joined room. Click Start Call to begin.');
             } catch (error) {
                 console.error('Error joining room:', error);
-                showToast('Error joining room.');
+                showToast('Error joining room: ' + error.message);
             }
         });
 
@@ -599,7 +633,7 @@
                 showToast(isAudioMuted ? 'Audio muted.' : 'Audio unmuted.');
             } catch (error) {
                 console.error('Error muting audio:', error);
-                showToast('Error muting audio.');
+                showToast('Error muting audio: ' + error.message);
             }
         });
 
@@ -614,9 +648,14 @@
                 showToast(isVideoMuted ? 'Video muted.' : 'Video unmuted.');
             } catch (error) {
                 console.error('Error muting video:', error);
-                showToast('Error muting video.');
+                showToast('Error muting video: ' + error.message);
             }
         });
+
+        // Test server connectivity on page load
+        window.onload = function() {
+            testServerConnectivity();
+        };
     </script>
 </body>
 </html>
