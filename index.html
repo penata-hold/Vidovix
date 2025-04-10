@@ -271,11 +271,11 @@
         
         <div class="video-container">
             <div class="video-box">
-                <video id="localVideo" autoplay muted></video>
+                <video id="localVideo" autoplay muted playsinline></video>
                 <div class="video-label">You</div>
             </div>
             <div class="video-box">
-                <video id="remoteVideo" autoplay></video>
+                <video id="remoteVideo" autoplay playsinline></video>
                 <div class="video-label">Remote</div>
             </div>
         </div>
@@ -329,19 +329,20 @@
             try {
                 localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
                 localVideo.srcObject = localStream;
+                console.log('Local stream initialized:', localStream);
 
                 peer = new Peer({
-                    // Using default PeerJS Cloud server for testing
-                    // Replace with your own server for production
-                    debug: 3
+                    debug: 3 // Enable detailed logging
                 });
 
                 peer.on('open', (id) => {
                     currentPeerId = id;
                     console.log('My peer ID is:', id);
+                    roomIdDisplay.textContent = id; // Optional: Show ID immediately
                 });
 
                 peer.on('call', (call) => {
+                    console.log('Incoming call from:', call.peer);
                     call.answer(localStream);
                     setupCall(call);
                     updateStatus('connected');
@@ -354,14 +355,14 @@
 
                 peer.on('error', (err) => {
                     console.error('PeerJS error:', err);
-                    alert(`Error: ${err.type} - ${err.message}`);
+                    alert(`PeerJS Error: ${err.type} - ${err.message}`);
                 });
 
                 setupEventListeners();
 
             } catch (err) {
                 console.error('Initialization error:', err);
-                alert('Failed to access camera/microphone. Please check permissions.');
+                alert('Failed to access camera/microphone. Please check permissions and try again.');
             }
         }
 
@@ -392,7 +393,7 @@
             alert('Room created! Share the Room ID with others to join.');
         }
 
-        function joinRoom() {
+        async function joinRoom() {
             const roomId = roomIdInput.value.trim();
             if (!roomId) {
                 alert('Please enter a Room ID');
@@ -416,12 +417,13 @@
             dataConnection = peer.connect(roomId);
             setupDataConnection();
 
+            console.log('Calling peer:', roomId);
             const call = peer.call(roomId, localStream);
             if (call) {
                 setupCall(call);
                 updateStatus('connected');
             } else {
-                alert('Failed to connect to the room. Peer might not exist.');
+                alert('Failed to initiate call. Peer might not exist or is unreachable.');
                 endCall();
             }
         }
@@ -432,22 +434,34 @@
             chatContainer.style.display = 'block';
 
             call.on('stream', (remoteStream) => {
+                console.log('Received remote stream:', remoteStream);
                 remoteVideo.srcObject = remoteStream;
+                remoteVideo.play().catch(err => console.error('Remote video play error:', err));
             });
 
             call.on('close', () => {
+                console.log('Call closed');
                 endCall();
             });
 
             call.on('error', (err) => {
                 console.error('Call error:', err);
+                alert('Call error occurred. Ending call.');
                 endCall();
             });
+
+            // Log connection state changes
+            call.peerConnection.oniceconnectionstatechange = () => {
+                console.log('ICE Connection State:', call.peerConnection.iceConnectionState);
+                if (call.peerConnection.iceConnectionState === 'disconnected') {
+                    endCall();
+                }
+            };
         }
 
         function setupDataConnection() {
             dataConnection.on('open', () => {
-                console.log('Data connection established');
+                console.log('Data connection established with:', dataConnection.peer);
             });
 
             dataConnection.on('data', (data) => {
@@ -494,6 +508,7 @@
             try {
                 localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
                 localVideo.srcObject = localStream;
+                console.log('Media stream reinitialized:', localStream);
             } catch (err) {
                 console.error('Failed to reinitialize media stream:', err);
             }
@@ -585,4 +600,4 @@
         init();
     </script>
 </body>
-</html>
+    </html
